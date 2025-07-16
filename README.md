@@ -1,6 +1,8 @@
 # nimbiestatemachine
 Python driver for acronova's nimbie NB21
 
+![Acronova Nimbie USB Plus NB-21](images/nimbie-nb21.jpg)
+
 This project was inspired by the original [nimbie-py](https://github.com/mattsoulanille/nimbie-py) implementation.
 
 ## Features
