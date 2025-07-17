@@ -10,6 +10,7 @@ This project was inspired by the original [nimbie-py](https://github.com/mattsou
 - **Polling-Based**: Configurable polling intervals and timeouts, no hardcoded delays
 - **Direct Hardware Control**: USB interface with immediate command execution
 - **State Machine**: Safe, structured disk processing workflows with automatic error recovery
+- **Pure State Machine**: Alternative implementation where all hardware operations happen in state transitions
 - **Batch Processing**: Support for multiple disks with queue management
 - **Manual Mode**: Testing and recovery operations that bypass state restrictions
 - **Comprehensive Error Handling**: USB reset, state reading retry, automatic recovery
@@ -121,6 +122,36 @@ print(f"Processed {stats['total']} disks: {stats['accepted']} accepted, {stats['
 sm.process_continuous(process_fn=process_disk)
 ```
 
+### Using the Pure State Machine (Alternative)
+```python
+from nimbie import NimbiePureStateMachine
+
+# Initialize pure state machine with target drive
+# macOS: drive index (1, 2, etc.)
+# Linux: device path ("/dev/sr0", "/dev/cdrom", etc.)
+sm = NimbiePureStateMachine(
+    target_drive="1",
+    poll_interval=0.1,  # Poll every 100ms
+    default_timeout=30.0  # 30 second timeout for disk operations
+)
+
+# Initialize hardware (handles stuck disks, clears tray, etc.)
+sm.initialize()
+
+# Process disks using event-driven API
+if sm.load_next_disk():
+    print("Disk loaded, processing...")
+    # Your processing logic here
+    
+    if disk_is_good:
+        sm.accept_current_disk()
+    else:
+        sm.reject_current_disk()
+
+# Clean up when done
+sm.close()
+```
+
 ### Manual Mode (Testing and Recovery)
 ```python
 # Use manual mode to bypass state restrictions
@@ -142,44 +173,46 @@ sm.unload_disk_to_accept()  # Complete disk unloading workflow
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      SYSTEM ARCHITECTURE                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Application Layer                                              │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Your Code (process_disk function)                      │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                              │                                  │
-│                              ▼                                  │
-│  State Machine Layer        ┌──────────────────────┐            │
-│  ┌───────────────────┐      │  High-Level APIs     │            │
-│  │ NimbieStateMachine│◀─────│  • process_batch()   │            │
-│  │                   │      │  • process_one_disk()│            │
-│  │ • States          │      │  • load_disk_from_   │            │
-│  │ • Transitions     │      │    queue()           │            │
-│  │ • Polling Logic   │      └──────────────────────┘            │
-│  │ • Error Recovery  │                                          │
-│  └────────┬──────────┘                                          │
-│           │ polls for state changes                             │
-│           ▼                                                     │
-│  Driver Layer              ┌──────────────────────┐             │
-│  ┌──────────────────┐      │  Hardware Commands   │             │
-│  │  NimbieDriver    │◀─────│  • place_disk()      │             │
-│  │                  │      │  • lift_disk()       │             │
-│  │ • USB Commands   │      │  • accept_disk()     │             │
-│  │ • No Waiting     │      │  • open_tray()       │             │
-│  │ • Returns Fast   │      │  • get_state()       │             │
-│  └────────┬─────────┘      └──────────────────────┘             │
-│           │                                                     │
-│           ▼                                                     │
-│  Hardware Layer                                                 │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Nimbie USB Device (VID: 0x1723, PID: 0x0945)           │    │
-│  │  CD/DVD Drive (drutil on macOS, eject on Linux)         │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                      SYSTEM ARCHITECTURE                          │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Application Layer                                                │
+│  ┌─────────────────────────────────────────────────────────┐      │
+│  │  Your Code (process_disk function)                      │      │
+│  └─────────────────────────────────────────────────────────┘      │
+│                              │                                    │
+│                              ▼                                    │
+│  State Machine Layer    ┌───────────────────┐  ┌────────────────┐ │
+│  ┌───────────────────┐  │ NimbiePureState   │  │High-Level APIs │ │
+│  │ NimbieStateMachine│  │    Machine        │  │                │ │
+│  │                   │  │                   │  │•process_batch()│ │
+│  │ • States          │  │ • Pure pattern    │  │•process_one_   │ │
+│  │ • Transitions     │  │ • HW ops in       │  │  disk()        │ │
+│  │ • Polling Logic   │  │   transitions     │  │•load_disk_     │ │
+│  │ • Error Recovery  │  │ • Event-driven    │  │  from_queue()  │ │
+│  └────────┬──────────┘  └────────┬──────────┘  └────────────────┘ │
+│           │                      │                                │
+│           │ polls for state      │ hardware ops in transitions    │
+│           │ changes              │                                │
+│           ▼                      ▼                                │
+│  Driver Layer              ┌──────────────────────┐               │
+│  ┌──────────────────┐      │  Hardware Commands   │               │
+│  │  NimbieDriver    │◀─────│  • place_disk()      │               │
+│  │                  │      │  • lift_disk()       │               │
+│  │ • USB Commands   │      │  • accept_disk()     │               │
+│  │ • No Waiting     │      │  • open_tray()       │               │
+│  │ • Returns Fast   │      │  • get_state()       │               │
+│  └────────┬─────────┘      └──────────────────────┘               │
+│           │                                                       │
+│           ▼                                                       │
+│  Hardware Layer                                                   │
+│  ┌─────────────────────────────────────────────────────────┐      │
+│  │  Nimbie USB Device (VID: 0x1723, PID: 0x0945)           │      │
+│  │  CD/DVD Drive (drutil on macOS, eject on Linux)         │      │
+│  └─────────────────────────────────────────────────────────┘      │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Clean Driver Interface

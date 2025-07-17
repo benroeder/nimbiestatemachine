@@ -167,6 +167,25 @@ class NimbieDriver:
             custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress)
             == usb.util.ENDPOINT_OUT,
         )
+    
+    def close(self):
+        """Close the USB connection and release resources."""
+        if hasattr(self, 'dev') and self.dev is not None:
+            try:
+                # Release the interface
+                usb.util.release_interface(self.dev, 0)
+                # Dispose of resources
+                usb.util.dispose_resources(self.dev)
+                self.dev = None
+                self.in_ep = None
+                self.out_ep = None
+            except Exception:
+                # Ignore errors during cleanup
+                pass
+    
+    def __del__(self):
+        """Cleanup when object is garbage collected."""
+        self.close()
 
     def send_command(self, *command: int) -> str:
         """Send a command of up to six bytes to the Nimbie.

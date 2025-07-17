@@ -94,6 +94,18 @@ class NimbieStateMachine:
 
         # Perform startup disk check
         self._startup_disk_check()
+    
+    def close(self) -> None:
+        """Close the hardware connection and cleanup resources."""
+        if hasattr(self, 'hardware') and self.hardware is not None:
+            if hasattr(self.hardware, 'close'):
+                self.hardware.close()
+            self.hardware = None
+            self.logger.info("State machine closed")
+    
+    def __del__(self) -> None:
+        """Cleanup when object is garbage collected."""
+        self.close()
 
     def _add_transitions(self) -> None:
         """Define state transitions."""

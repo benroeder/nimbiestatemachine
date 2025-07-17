@@ -40,6 +40,13 @@ Complete demonstration of all state machine features including:
 - Error recovery demonstration
 - Continuous processing mode
 
+### example_pure_state_machine.py
+Demonstrates the pure state machine pattern where:
+- All hardware operations happen within state transitions
+- Event-driven API (load_next_disk, accept_current_disk, etc.)
+- Comprehensive initialization that handles stuck disks
+- Clean resource management with close()
+
 ### example_disk_imaging.py
 Practical example for automated disk imaging/backup showing:
 - How to integrate with dd for disk imaging
