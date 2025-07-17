@@ -92,21 +92,31 @@ class NimbieStateMachine:
             source="idle",
             dest="loading",
             conditions=["can_load_disk"],
+            after=lambda: self._log_transition("start_load", "idle", "loading"),
         )
 
         # From loading to processing (disk loaded)
         self.machine.add_transition(
-            trigger="complete_load", source="loading", dest="processing"
+            trigger="complete_load",
+            source="loading",
+            dest="processing",
+            after=lambda: self._log_transition("complete_load", "loading", "processing"),
         )
 
         # From processing to unloading
         self.machine.add_transition(
-            trigger="start_unload", source="processing", dest="unloading"
+            trigger="start_unload",
+            source="processing",
+            dest="unloading",
+            after=lambda: self._log_transition("start_unload", "processing", "unloading"),
         )
 
         # From unloading back to idle
         self.machine.add_transition(
-            trigger="complete_unload", source="unloading", dest="idle"
+            trigger="complete_unload",
+            source="unloading",
+            dest="idle",
+            after=lambda: self._log_transition("complete_unload", "unloading", "idle"),
         )
 
         # Error transitions - can go to error from any state
@@ -114,11 +124,16 @@ class NimbieStateMachine:
             trigger="error_occurred",
             source=["idle", "loading", "processing", "unloading"],
             dest="error",
+            before=lambda: setattr(self, '_error_source', self.state),
+            after=lambda: self._log_transition("error_occurred", getattr(self, '_error_source', 'unknown'), "error"),
         )
 
         # Recovery from error
         self.machine.add_transition(
-            trigger="recover", source="error", dest="idle", after="reset_hardware"
+            trigger="recover",
+            source="error",
+            dest="idle",
+            after=["reset_hardware", lambda: self._log_transition("recover", "error", "idle")],
         )
 
     # Type annotations for dynamically created transition methods
@@ -149,6 +164,10 @@ class NimbieStateMachine:
     def can_load_disk(self) -> bool:
         """Check if we can load a disk."""
         return self.hardware.disk_available()
+
+    def _log_transition(self, trigger: str, source: str, dest: str) -> None:
+        """Log state transitions for debugging."""
+        self.logger.info(f"State transition: {source} -> {dest} (trigger: {trigger})")
 
     def reset_hardware(self) -> None:
         """Reset hardware to safe state."""
@@ -484,7 +503,6 @@ class NimbieStateMachine:
 
             # Start loading sequence
             self.start_load()  # Transition: idle -> loading
-            self.logger.info(f"State: {self.state} - Loading disk...")
 
             # Load disk
             self._open_tray()
@@ -493,7 +511,6 @@ class NimbieStateMachine:
 
             # Complete loading
             self.complete_load()  # Transition: loading -> processing
-            self.logger.info(f"State: {self.state} - Disk loaded")
 
             # Process disk (user function)
             if process_fn:
@@ -504,7 +521,6 @@ class NimbieStateMachine:
 
             # Start unloading
             self.start_unload()  # Transition: processing -> unloading
-            self.logger.info(f"State: {self.state} - Unloading disk...")
 
             # Unload disk
             self._open_tray()
@@ -521,14 +537,12 @@ class NimbieStateMachine:
 
             # Complete unloading
             self.complete_unload()  # Transition: unloading -> idle
-            self.logger.info(f"State: {self.state} - Ready for next disk")
 
             return True, result
 
         except Exception as e:
             self.logger.error(f"Error processing disk: {e}")
             self.error_occurred()  # Transition: any -> error
-            self.logger.info(f"State: {self.state} - Error occurred")
             # Try to recover
             self.recover()  # Transition: error -> idle
             return False, False
