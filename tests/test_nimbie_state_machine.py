@@ -343,9 +343,9 @@ def test_process_batch(nimbie_state_machine: NimbieStateMachine) -> None:
     available_disks = 0
     state = sm.get_hardware_state()
     if state["disk_available"]:
-        # We know there's at least one
-        available_disks = 1
-        # For this test, we'll just process what's available
+        # Process up to 3 disks if available
+        available_disks = 3
+        # For this test, we'll process multiple disks
 
     if available_disks == 0:
         pytest.skip("No disks in queue")
@@ -367,7 +367,9 @@ def test_process_batch(nimbie_state_machine: NimbieStateMachine) -> None:
     stats = sm.process_batch(count=available_disks, process_fn=process_fn)
 
     print(f"Batch processing results: {stats}")
-    assert stats["total"] == available_disks
-    assert stats["accepted"] == available_disks
+    # We might have fewer disks than requested
+    assert stats["total"] <= available_disks
+    assert stats["total"] > 0  # At least one disk was processed
+    assert stats["accepted"] == stats["total"]  # All disks accepted
     assert stats["rejected"] == 0
-    print(f"Successfully processed batch of {available_disks} disk(s)")
+    print(f"Successfully processed batch of {stats['total']} disk(s)")

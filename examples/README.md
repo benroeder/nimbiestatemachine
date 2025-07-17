@@ -9,6 +9,11 @@ All examples require the Nimbie hardware to be connected and powered on.
 ### First Time Setup
 ```bash
 # From project root
+make venv
+source venv/bin/activate
+make install-dev
+
+# Or manually:
 pip install -e .
 ```
 
@@ -48,6 +53,13 @@ Demonstrates different polling configurations:
 - Slow polling to reduce CPU usage
 - Custom timeouts for different operations
 
+### example_logging_config.py
+Shows how to configure logging:
+- Reduce logging verbosity
+- Log to file instead of console
+- Custom log formatting
+- Multiple log handlers
+
 ### test_queue_cycle.py
 Simple queue processing demonstration with:
 - Progress display
@@ -66,6 +78,15 @@ def process_disk():
 
 sm = NimbieStateMachine(target_drive="1")
 processed, accepted = sm.process_one_disk(process_fn=process_disk)
+```
+
+### Monitoring State Transitions
+All state transitions are automatically logged:
+```
+2025-07-17 10:25:15,496 - State transition: idle -> loading (trigger: start_load)
+2025-07-17 10:25:15,496 - State transition: loading -> processing (trigger: complete_load)
+2025-07-17 10:25:15,996 - State transition: processing -> unloading (trigger: start_unload)
+2025-07-17 10:25:23,304 - State transition: unloading -> idle (trigger: complete_unload)
 ```
 
 ### Batch Processing

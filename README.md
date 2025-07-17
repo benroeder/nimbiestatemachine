@@ -13,7 +13,9 @@ This project was inspired by the original [nimbie-py](https://github.com/mattsou
 - **Batch Processing**: Support for multiple disks with queue management
 - **Manual Mode**: Testing and recovery operations that bypass state restrictions
 - **Comprehensive Error Handling**: USB reset, state reading retry, automatic recovery
-- **Type Safety**: Full type hints and mypy compliance
+- **Type Safety**: Full type hints and mypy compliance (Python 3.9+)
+- **Configurable Logging**: Adjustable verbosity with state transition tracking
+- **Development Tools**: Makefile for common tasks (lint, format, typecheck, test)
 
 ## Installation
 
@@ -23,15 +25,38 @@ This project was inspired by the original [nimbie-py](https://github.com/mattsou
 git clone https://github.com/benroeder/nimbiestatemachine.git
 cd nimbiestatemachine
 
-# Create virtual environment
-python -m venv venv
+# Create virtual environment and install
+make venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+make install-dev
 
-# Install in development mode
-pip install -e .
-
-# Install development dependencies
+# Or manually:
+python -m venv venv
+source venv/bin/activate
 pip install -e ".[dev]"
+```
+
+### Development Workflow
+```bash
+# Run linting
+make lint
+
+# Format code
+make format
+
+# Type checking
+make typecheck
+
+# Run tests
+make test                # All tests
+make test-no-hardware    # Skip hardware tests
+make test-hardware       # Only hardware tests
+
+# Coverage report
+make coverage
+
+# Run all checks before committing
+make lint typecheck test
 ```
 
 ### For Usage
@@ -189,6 +214,37 @@ sm = NimbieStateMachine(target_drive="1", poll_interval=0.5, default_timeout=30.
 # Note: Disk placement operations use 30s timeout by default due to mechanical timing
 ```
 
+### Logging Configuration
+```python
+# Default: INFO level to stdout with timestamps
+sm = NimbieStateMachine(target_drive="1")
+
+# Reduce verbosity (only warnings and errors)
+import logging
+sm = NimbieStateMachine(target_drive="1", log_level=logging.WARNING)
+
+# Minimal logging (errors only)
+sm = NimbieStateMachine(target_drive="1", log_level=logging.ERROR)
+
+# Log to file
+handler = logging.FileHandler('nimbie.log')
+handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+sm = NimbieStateMachine(target_drive="1", log_handler=handler)
+
+# Custom format without timestamps
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+sm = NimbieStateMachine(target_drive="1", log_handler=handler)
+```
+
+State transitions are always logged at INFO level:
+```
+2025-07-17 10:25:15,496 - State transition: idle -> loading (trigger: start_load)
+2025-07-17 10:25:15,496 - State transition: loading -> processing (trigger: complete_load)
+2025-07-17 10:25:15,996 - State transition: processing -> unloading (trigger: start_unload)
+2025-07-17 10:25:23,304 - State transition: unloading -> idle (trigger: complete_unload)
+```
+
 ## Testing
 
 ```bash
@@ -260,9 +316,6 @@ All examples are in the `examples/` directory:
 - [examples/example_polling_config.py](examples/example_polling_config.py) - Polling configuration examples
 - [examples/test_queue_cycle.py](examples/test_queue_cycle.py) - Queue processing demonstration
 
-## API Documentation
-
-See [STATE_MACHINE_API.md](STATE_MACHINE_API.md) for detailed API documentation and examples.
 
 ## License
 

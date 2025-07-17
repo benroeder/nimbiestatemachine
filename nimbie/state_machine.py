@@ -40,6 +40,8 @@ class NimbieStateMachine:
         hardware: Optional[NimbieDriver] = None,
         poll_interval: float = 0.1,
         default_timeout: float = 10.0,
+        log_level: Optional[int] = None,
+        log_handler: Optional[logging.Handler] = None,
     ) -> None:
         """Initialize state machine with hardware interface.
 
@@ -50,13 +52,19 @@ class NimbieStateMachine:
             hardware: Nimbie hardware instance (creates new one if None)
             poll_interval: Time between polling attempts in seconds (default 0.1)
             default_timeout: Default timeout for operations in seconds (default 10.0)
+            log_level: Logging level (default: logging.INFO). Use logging.WARNING to reduce output
+            log_handler: Custom logging handler (default: stdout with timestamp)
         """
         # Set up logging with immediate flush
-        handler = ImmediateStreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+        handler: logging.Handler
+        if log_handler is None:
+            handler = ImmediateStreamHandler(sys.stdout)
+            handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+        else:
+            handler = log_handler
 
         self.logger = logging.getLogger("nimbie")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(log_level if log_level is not None else logging.INFO)
         self.logger.handlers = []  # Clear any existing handlers
         self.logger.addHandler(handler)
         self.logger.propagate = False  # Don't propagate to root logger
@@ -100,7 +108,9 @@ class NimbieStateMachine:
             trigger="complete_load",
             source="loading",
             dest="processing",
-            after=lambda: self._log_transition("complete_load", "loading", "processing"),
+            after=lambda: self._log_transition(
+                "complete_load", "loading", "processing"
+            ),
         )
 
         # From processing to unloading
@@ -108,7 +118,9 @@ class NimbieStateMachine:
             trigger="start_unload",
             source="processing",
             dest="unloading",
-            after=lambda: self._log_transition("start_unload", "processing", "unloading"),
+            after=lambda: self._log_transition(
+                "start_unload", "processing", "unloading"
+            ),
         )
 
         # From unloading back to idle
@@ -124,8 +136,10 @@ class NimbieStateMachine:
             trigger="error_occurred",
             source=["idle", "loading", "processing", "unloading"],
             dest="error",
-            before=lambda: setattr(self, '_error_source', self.state),
-            after=lambda: self._log_transition("error_occurred", getattr(self, '_error_source', 'unknown'), "error"),
+            before=lambda: setattr(self, "_error_source", self.state),
+            after=lambda: self._log_transition(
+                "error_occurred", getattr(self, "_error_source", "unknown"), "error"
+            ),
         )
 
         # Recovery from error
@@ -133,33 +147,36 @@ class NimbieStateMachine:
             trigger="recover",
             source="error",
             dest="idle",
-            after=["reset_hardware", lambda: self._log_transition("recover", "error", "idle")],
+            after=[
+                "reset_hardware",
+                lambda: self._log_transition("recover", "error", "idle"),
+            ],
         )
 
-    # Type annotations for dynamically created transition methods
+    # Type stubs for dynamically created transition methods
     def start_load(self) -> bool:  # type: ignore[empty-body]
         """Start loading a disk. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def complete_load(self) -> bool:  # type: ignore[empty-body]
         """Complete loading a disk. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def start_unload(self) -> bool:  # type: ignore[empty-body]
         """Start unloading a disk. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def complete_unload(self) -> bool:  # type: ignore[empty-body]
         """Complete unloading a disk. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def error_occurred(self) -> bool:  # type: ignore[empty-body]
         """Transition to error state. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def recover(self) -> bool:  # type: ignore[empty-body]
         """Recover from error state. Added by transitions library."""
-        pass  # This method is dynamically created by transitions library
+        ...  # This method is dynamically created by transitions library
 
     def can_load_disk(self) -> bool:
         """Check if we can load a disk."""
@@ -502,6 +519,7 @@ class NimbieStateMachine:
                 return False, False
 
             # Start loading sequence
+            self.logger.info("State transition: idle -> loading (trigger: start_load)")
             self.start_load()  # Transition: idle -> loading
 
             # Load disk
@@ -510,6 +528,9 @@ class NimbieStateMachine:
             self._close_tray()
 
             # Complete loading
+            self.logger.info(
+                "State transition: loading -> processing (trigger: complete_load)"
+            )
             self.complete_load()  # Transition: loading -> processing
 
             # Process disk (user function)
@@ -520,6 +541,9 @@ class NimbieStateMachine:
                 result = True  # Default: accept all
 
             # Start unloading
+            self.logger.info(
+                "State transition: processing -> unloading (trigger: start_unload)"
+            )
             self.start_unload()  # Transition: processing -> unloading
 
             # Unload disk
@@ -536,14 +560,21 @@ class NimbieStateMachine:
                 self.logger.info("Disk rejected")
 
             # Complete unloading
+            self.logger.info(
+                "State transition: unloading -> idle (trigger: complete_unload)"
+            )
             self.complete_unload()  # Transition: unloading -> idle
 
             return True, result
 
         except Exception as e:
             self.logger.error(f"Error processing disk: {e}")
+            self.logger.info(
+                f"State transition: {self.state} -> error (trigger: error_occurred)"
+            )
             self.error_occurred()  # Transition: any -> error
             # Try to recover
+            self.logger.info("State transition: error -> idle (trigger: recover)")
             self.recover()  # Transition: error -> idle
             return False, False
 

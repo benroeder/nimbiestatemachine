@@ -60,6 +60,7 @@ def main():
 
     # Initialize the state machine
     print("\nInitializing Nimbie State Machine...")
+    print("NOTE: State transitions will be logged automatically")
     try:
         sm = NimbieStateMachine(target_drive="1")
         print("State machine initialized successfully!")
