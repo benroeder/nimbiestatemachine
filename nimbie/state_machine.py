@@ -92,6 +92,9 @@ class NimbieStateMachine:
 
         self.logger.info("State machine initialized in idle state")
 
+        # Perform startup disk check
+        self._startup_disk_check()
+
     def _add_transitions(self) -> None:
         """Define state transitions."""
         # From idle, we can start loading
@@ -186,6 +189,89 @@ class NimbieStateMachine:
         """Log state transitions for debugging."""
         self.logger.info(f"State transition: {source} -> {dest} (trigger: {trigger})")
 
+    def _startup_disk_check(self) -> None:
+        """Perform startup check for disk in drive.
+
+        Since the Nimbie cannot detect a disk in a closed drive,
+        we perform a cycle to ensure no disk is stuck in the drive
+        from a previous session.
+        """
+        self.logger.info("Performing startup disk check...")
+        try:
+            # Only check if hardware is available
+            state = self.hardware.get_state()
+
+            # First check if dropper is already holding a disk
+            if state.get("disk_lifted", False):
+                self.logger.warning("Dropper is already holding a disk at startup")
+                # Ensure tray is closed before dropping
+                if state["tray_out"]:
+                    self._close_tray()
+                    self.wait_for_tray_close()
+                # Drop the disk
+                try:
+                    self._accept_disk()
+                    self.wait_for_disk_dropped()
+                    self.logger.info("Cleared disk from dropper")
+                except Exception as e:
+                    self.logger.warning(f"Error dropping disk from dropper: {e}")
+                # Re-read state after clearing dropper
+                state = self.hardware.get_state()
+
+            # If tray is closed, we need to check for stuck disk
+            if not state["tray_out"]:
+                self.logger.info("Tray is closed at startup, checking for stuck disk")
+
+                # Open tray
+                self._open_tray()
+                if not self.wait_for_tray_open(timeout=15.0):
+                    self.logger.error("Failed to open tray during startup check")
+                    return
+
+                # Always attempt to lift, even if we don't see a disk
+                self.logger.info("Attempting to lift any disk that might be present")
+                try:
+                    result = self.hardware.lift_disk()
+
+                    # Check if lift was successful (no error)
+                    if not result.startswith("AT+E") and not result.startswith(
+                        "AT+S00"
+                    ):
+                        self.logger.warning(
+                            "Found and removed stuck disk from previous session"
+                        )
+                        self._close_tray()
+                        self.wait_for_tray_close()
+                        self._accept_disk()
+                        self.wait_for_disk_dropped()
+                    else:
+                        self.logger.info("No disk found in drive")
+                        self._close_tray()
+                        self.wait_for_tray_close()
+
+                except Exception as e:
+                    self.logger.warning(f"Error during startup lift: {e}")
+                    # Try to close tray anyway
+                    try:
+                        self._close_tray()
+                        self.wait_for_tray_close()
+                    except Exception:
+                        pass
+            else:
+                self.logger.info("Tray is already open at startup")
+                # Check if there's a disk in the open tray
+                if state.get("disk_in_open_tray", False):
+                    self.logger.warning("Found disk in open tray at startup")
+                    self._lift_disk()
+                    self._close_tray()
+                    self.wait_for_tray_close()
+                    self._accept_disk()
+                    self.wait_for_disk_dropped()
+
+        except Exception as e:
+            self.logger.error(f"Error during startup disk check: {e}")
+            # Continue anyway - don't fail initialization
+
     def reset_hardware(self) -> None:
         """Reset hardware to safe state."""
         self.logger.info("Resetting hardware to safe state")
@@ -229,16 +315,35 @@ class NimbieStateMachine:
             elif not state["tray_out"]:
                 self.logger.info("Tray closed, checking for loaded disk")
                 self._open_tray()
-                import time
 
-                time.sleep(1)
-                state = self.hardware.get_state()
-                if state["disk_in_open_tray"]:
-                    self.logger.info("Found disk in drive, removing it")
-                    self._lift_disk()
-                    self._close_tray()
-                    self._accept_disk()
-                else:
+                # Wait for tray to fully open
+                if not self.wait_for_tray_open():
+                    self.logger.warning("Tray failed to open during recovery")
+                    return
+
+                # Try to lift any disk that might be present
+                # Even if we don't detect it, attempt the lift operation
+                self.logger.info("Attempting to lift any disk in tray")
+                try:
+                    result = self.hardware.lift_disk()
+                    self.logger.info(f"Lift result: {result}")
+
+                    # If lift succeeded, we had a disk
+                    if not result.startswith("AT+E"):
+                        self.logger.info("Disk was present and lifted")
+                        self._close_tray()
+                        if not self.wait_for_tray_close():
+                            self.logger.warning("Tray failed to close after lift")
+                            return
+                        self._accept_disk()
+                    else:
+                        self.logger.info("No disk found in tray")
+                        self._close_tray()
+                        if not self.wait_for_tray_close():
+                            self.logger.warning("Tray failed to close")
+                except Exception as e:
+                    self.logger.warning(f"Error during disk lift attempt: {e}")
+                    # Still try to close the tray
                     self._close_tray()
 
             # Force state machine to idle using proper API
