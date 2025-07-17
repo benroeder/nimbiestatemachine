@@ -112,7 +112,7 @@ def main():
         print(f"  Total processed: {stats['total']}")
         print(f"  Accepted: {stats['accepted']}")
         print(f"  Rejected: {stats['rejected']}")
-        print(f"  Success rate: {stats['accepted']/stats['total']*100:.1f}%")
+        print(f"  Success rate: {stats['accepted'] / stats['total'] * 100:.1f}%")
     else:
         print("No more disks available.")
 

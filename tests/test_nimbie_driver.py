@@ -2,6 +2,7 @@
 
 import inspect
 import time
+from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,7 +22,7 @@ pytestmark = pytest.mark.hardware
 
 
 @pytest.fixture(scope="module")
-def nimbie_driver():
+def nimbie_driver() -> Generator[NimbieDriver, None, None]:
     """Provide a NimbieDriver instance for testing."""
     try:
         driver = NimbieDriver(target_drive="1")
@@ -33,7 +34,7 @@ def nimbie_driver():
 class TestNimbieDriverBasics:
     """Test basic driver functionality."""
 
-    def test_driver_connects(self, nimbie_driver):
+    def test_driver_connects(self, nimbie_driver: NimbieDriver) -> None:
         """Test that driver can connect to hardware."""
         # Use the fixture which already has a connected driver
         driver = nimbie_driver
@@ -41,7 +42,7 @@ class TestNimbieDriverBasics:
         assert driver.in_ep is not None
         assert driver.out_ep is not None
 
-    def test_driver_has_no_sleep(self):
+    def test_driver_has_no_sleep(self) -> None:
         """Verify the driver doesn't use sleep."""
         import nimbie.driver as nimbie_driver
 
@@ -51,7 +52,7 @@ class TestNimbieDriverBasics:
         assert "from time import" not in source
         assert "sleep(" not in source
 
-    def test_get_state_structure(self, nimbie_driver):
+    def test_get_state_structure(self, nimbie_driver: NimbieDriver) -> None:
         """Test that get_state returns correct structure."""
         driver = nimbie_driver
         try:
@@ -77,11 +78,11 @@ class TestNimbieDriverCommands:
     """Test hardware commands return immediately without polling."""
 
     @pytest.fixture
-    def driver(self, nimbie_driver):
+    def driver(self, nimbie_driver: NimbieDriver) -> NimbieDriver:
         """Use the module-scoped driver instance."""
         return nimbie_driver
 
-    def test_tray_commands_return_immediately(self, driver):
+    def test_tray_commands_return_immediately(self, driver: NimbieDriver) -> None:
         """Test that tray commands return without waiting."""
         # Mock the eject functions to measure timing
         driver._open_tray_fn = MagicMock()
@@ -101,7 +102,7 @@ class TestNimbieDriverCommands:
         assert elapsed < 0.1, f"close_tray took {elapsed}s, should be instant"
         driver._close_tray_fn.assert_called_once()
 
-    def test_disk_available(self, driver):
+    def test_disk_available(self, driver: NimbieDriver) -> None:
         """Test disk_available method."""
         try:
             available = driver.disk_available()
@@ -111,7 +112,7 @@ class TestNimbieDriverCommands:
                 pytest.skip(f"Hardware access issue: {e}")
             raise
 
-    def test_place_disk_error_handling(self, driver):
+    def test_place_disk_error_handling(self, driver: NimbieDriver) -> None:
         """Test that place_disk raises appropriate errors."""
         # If no disk available, should raise NoDiskError
         try:
@@ -123,7 +124,7 @@ class TestNimbieDriverCommands:
                 pytest.skip(f"Hardware access issue: {e}")
             raise
 
-    def test_lift_disk_error_handling(self, driver):
+    def test_lift_disk_error_handling(self, driver: NimbieDriver) -> None:
         """Test that lift_disk raises appropriate errors."""
         try:
             state = driver.get_state()
@@ -141,7 +142,7 @@ class TestNimbieDriverCommands:
 class TestNimbieDriverStatusCodes:
     """Test status code handling."""
 
-    def test_decode_success_codes(self):
+    def test_decode_success_codes(self) -> None:
         """Test decoding of success status codes."""
         result = NimbieDriver.decode_statuscode("AT+O")
         assert isinstance(result, str)
@@ -151,7 +152,7 @@ class TestNimbieDriverStatusCodes:
         assert isinstance(result, str)
         assert "placed" in result.lower()
 
-    def test_decode_error_codes(self):
+    def test_decode_error_codes(self) -> None:
         """Test decoding of error status codes."""
         # Test disk in tray error
         result = NimbieDriver.decode_statuscode("AT+S12")
@@ -177,7 +178,7 @@ class TestNimbieDriverStatusCodes:
         result = NimbieDriver.decode_statuscode("AT+E09")
         assert isinstance(result, HardwareStateError)
 
-    def test_extract_statuscode(self):
+    def test_extract_statuscode(self) -> None:
         """Test status code extraction from response."""
         # Test valid response
         response = ["", "AT+S07", ""]
@@ -193,7 +194,7 @@ class TestNimbieDriverStatusCodes:
 class TestNimbieDriverAPI:
     """Test that the driver API is minimal and clean."""
 
-    def test_public_api(self, nimbie_driver):
+    def test_public_api(self, nimbie_driver: NimbieDriver) -> None:
         """Test that only intended methods are public."""
         driver = nimbie_driver
 
@@ -256,11 +257,11 @@ class TestNimbieDriverAPI:
         }
 
         # Check we have exactly the expected methods
-        assert (
-            public_methods == expected_public
-        ), f"Unexpected public methods: {public_methods - expected_public}"
+        assert public_methods == expected_public, (
+            f"Unexpected public methods: {public_methods - expected_public}"
+        )
 
-    def test_no_high_level_methods(self, nimbie_driver):
+    def test_no_high_level_methods(self, nimbie_driver: NimbieDriver) -> None:
         """Verify driver doesn't have high-level workflow methods."""
         driver = nimbie_driver
 
@@ -276,15 +277,15 @@ class TestNimbieDriverAPI:
         ]
 
         for method in forbidden_methods:
-            assert not hasattr(
-                driver, method
-            ), f"Driver should not have {method} method"
+            assert not hasattr(driver, method), (
+                f"Driver should not have {method} method"
+            )
 
 
 class TestNimbieDriverDocumentation:
     """Test that all methods are properly documented."""
 
-    def test_all_methods_have_docstrings(self, nimbie_driver):
+    def test_all_methods_have_docstrings(self, nimbie_driver: NimbieDriver) -> None:
         """Verify all public methods have docstrings."""
         driver = nimbie_driver
 

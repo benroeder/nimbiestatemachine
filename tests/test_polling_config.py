@@ -4,13 +4,13 @@ import time
 
 import pytest
 
-from nimbie import NimbieStateMachine
+from nimbie import NimbieDriver, NimbieStateMachine
 
 
 class TestPollingConfigurations:
     """Test different polling configurations."""
 
-    def test_fast_polling(self, nimbie_hardware):
+    def test_fast_polling(self, nimbie_hardware: NimbieDriver) -> None:
         """Test with fast polling (0.05s)."""
         sm = NimbieStateMachine(
             target_drive="1",
@@ -40,7 +40,7 @@ class TestPollingConfigurations:
         # Close tray
         sm.close_tray()
 
-    def test_slow_polling(self, nimbie_hardware):
+    def test_slow_polling(self, nimbie_hardware: NimbieDriver) -> None:
         """Test with slow polling (0.5s)."""
         sm = NimbieStateMachine(
             target_drive="1",
@@ -70,7 +70,7 @@ class TestPollingConfigurations:
         # Close tray
         sm.close_tray()
 
-    def test_timeout_scenarios(self, nimbie_hardware):
+    def test_timeout_scenarios(self, nimbie_hardware: NimbieDriver) -> None:
         """Test timeout handling."""
         sm = NimbieStateMachine(
             target_drive="1",
@@ -100,7 +100,7 @@ class TestPollingConfigurations:
         assert 0.4 < elapsed < 0.8, f"Custom timeout not accurate: {elapsed}s"
         print(f"Correctly timed out after {elapsed:.2f}s")
 
-    def test_polling_performance(self, nimbie_hardware):
+    def test_polling_performance(self, nimbie_hardware: NimbieDriver) -> None:
         """Measure polling performance and suggest optimal values."""
         sm = NimbieStateMachine(target_drive="1", hardware=nimbie_hardware)
 
@@ -124,7 +124,7 @@ class TestPollingConfigurations:
             close_time = time.time() - start
 
             timings.append((open_time, close_time))
-            print(f"\nCycle {i+1}: Open={open_time:.2f}s, Close={close_time:.2f}s")
+            print(f"\nCycle {i + 1}: Open={open_time:.2f}s, Close={close_time:.2f}s")
 
         # Calculate averages
         avg_open = sum(t[0] for t in timings) / len(timings)
@@ -140,12 +140,12 @@ class TestPollingConfigurations:
         assert sm.default_timeout == 10.0, "Default timeout should be 10.0s"
 
         # Check that defaults provide good safety margin
-        assert (
-            sm.default_timeout > max_open * 2
-        ), "Timeout should be > 2x max operation time"
-        assert (
-            sm.default_timeout > max_close * 2
-        ), "Timeout should be > 2x max operation time"
+        assert sm.default_timeout > max_open * 2, (
+            "Timeout should be > 2x max operation time"
+        )
+        assert sm.default_timeout > max_close * 2, (
+            "Timeout should be > 2x max operation time"
+        )
 
         print("\nCurrent defaults (0.1s poll, 10s timeout) are appropriate")
 
@@ -153,7 +153,7 @@ class TestPollingConfigurations:
 class TestPollingWithStateChanges:
     """Test polling detects state changes correctly."""
 
-    def test_disk_placement_polling(self, nimbie_hardware):
+    def test_disk_placement_polling(self, nimbie_hardware: NimbieDriver) -> None:
         """Test that polling correctly detects disk placement."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=nimbie_hardware, poll_interval=0.1

@@ -129,14 +129,14 @@ class NimbieDriver:
         if open_tray_fn is None:
             from .eject import open_tray
 
-            def _open_tray():
+            def _open_tray() -> None:
                 return open_tray(target_drive)
 
             open_tray_fn = _open_tray
         if close_tray_fn is None:
             from .eject import close_tray
 
-            def _close_tray():
+            def _close_tray() -> None:
                 return close_tray(target_drive)
 
             close_tray_fn = _close_tray

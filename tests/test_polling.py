@@ -1,7 +1,7 @@
 """Test suite for polling infrastructure in the state machine."""
 
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -11,7 +11,7 @@ from nimbie import NimbieStateMachine
 class TestPollingInfrastructure:
     """Test the base polling functionality."""
 
-    def test_poll_interval_config(self):
+    def test_poll_interval_config(self) -> None:
         """Test that poll_interval can be configured."""
         # Test default
         sm = NimbieStateMachine(target_drive="1", hardware=MagicMock())
@@ -23,7 +23,7 @@ class TestPollingInfrastructure:
         )
         assert sm.poll_interval == 0.05
 
-    def test_timeout_config(self):
+    def test_timeout_config(self) -> None:
         """Test that default_timeout can be configured."""
         # Test default
         sm = NimbieStateMachine(target_drive="1", hardware=MagicMock())
@@ -35,7 +35,7 @@ class TestPollingInfrastructure:
         )
         assert sm.default_timeout == 5.0
 
-    def test_poll_until_success(self):
+    def test_poll_until_success(self) -> None:
         """Test _poll_until succeeds when condition is met."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.01
@@ -48,7 +48,7 @@ class TestPollingInfrastructure:
         assert result is True
         condition.assert_called()
 
-    def test_poll_until_timeout(self):
+    def test_poll_until_timeout(self) -> None:
         """Test _poll_until returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.01
@@ -65,7 +65,7 @@ class TestPollingInfrastructure:
         assert elapsed < 0.2  # But not much longer
         assert condition.call_count > 5  # Should have polled multiple times
 
-    def test_poll_until_eventual_success(self):
+    def test_poll_until_eventual_success(self) -> None:
         """Test _poll_until succeeds after several attempts."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.01
@@ -74,7 +74,7 @@ class TestPollingInfrastructure:
         # Condition that succeeds after 3 calls
         call_count = 0
 
-        def condition():
+        def condition() -> bool:
             nonlocal call_count
             call_count += 1
             return call_count >= 3
@@ -84,7 +84,7 @@ class TestPollingInfrastructure:
         assert result is True
         assert call_count >= 3
 
-    def test_poll_until_handles_exceptions(self):
+    def test_poll_until_handles_exceptions(self) -> None:
         """Test _poll_until continues polling even if condition raises."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.01
@@ -93,7 +93,7 @@ class TestPollingInfrastructure:
         # Condition that raises then succeeds
         call_count = 0
 
-        def condition():
+        def condition() -> bool:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
@@ -105,18 +105,18 @@ class TestPollingInfrastructure:
         assert result is True
         assert call_count >= 3
 
-    def test_poll_until_error_logging(self):
+    def test_poll_until_error_logging(self) -> None:
         """Test _poll_until logs errors appropriately."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.01
         )
 
         # Mock the logger
-        sm.logger.debug = MagicMock()
-        sm.logger.warning = MagicMock()
+        sm.logger.debug = MagicMock()  # type: ignore[method-assign]
+        sm.logger.warning = MagicMock()  # type: ignore[method-assign]
 
         # Condition that always fails
-        def condition():
+        def condition() -> bool:
             raise Exception("Test error")
 
         result = sm._poll_until(condition, timeout=0.05, error_msg="Testing polling")
@@ -129,7 +129,7 @@ class TestPollingInfrastructure:
         # Should have logged timeout warning
         sm.logger.warning.assert_called_with("Polling timeout: Testing polling")
 
-    def test_poll_until_respects_interval(self):
+    def test_poll_until_respects_interval(self) -> None:
         """Test that polling respects the configured interval."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=MagicMock(), poll_interval=0.05
@@ -138,7 +138,7 @@ class TestPollingInfrastructure:
         # Track call times
         call_times = []
 
-        def condition():
+        def condition() -> bool:
             call_times.append(time.time())
             return False
 
@@ -158,7 +158,7 @@ class TestPollingWithHardware:
     """Test polling with mocked hardware operations."""
 
     @pytest.fixture
-    def mock_hardware(self):
+    def mock_hardware(self) -> Mock:
         """Create a mock hardware instance."""
         hardware = MagicMock()
         # Default state
@@ -170,7 +170,7 @@ class TestPollingWithHardware:
         }
         return hardware
 
-    def test_polling_state_changes(self, mock_hardware):
+    def test_polling_state_changes(self, mock_hardware: Mock) -> None:
         """Test polling for hardware state changes."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -179,7 +179,7 @@ class TestPollingWithHardware:
         # Simulate tray opening after 3 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             if poll_count < 3:
@@ -211,7 +211,7 @@ class TestTrayPollingMethods:
     """Test tray-specific polling methods."""
 
     @pytest.fixture
-    def mock_hardware(self):
+    def mock_hardware(self) -> Mock:
         """Create a mock hardware instance."""
         hardware = MagicMock()
         # Default state - tray closed
@@ -223,7 +223,7 @@ class TestTrayPollingMethods:
         }
         return hardware
 
-    def test_wait_for_tray_open_success(self, mock_hardware):
+    def test_wait_for_tray_open_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_tray_open succeeds when tray opens."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -232,7 +232,7 @@ class TestTrayPollingMethods:
         # Simulate tray opening after 2 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             return {
@@ -249,7 +249,7 @@ class TestTrayPollingMethods:
         assert result is True
         assert poll_count >= 2
 
-    def test_wait_for_tray_open_timeout(self, mock_hardware):
+    def test_wait_for_tray_open_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_tray_open returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -271,7 +271,7 @@ class TestTrayPollingMethods:
         assert elapsed >= 0.1
         assert mock_hardware.get_state.call_count > 5
 
-    def test_wait_for_tray_close_success(self, mock_hardware):
+    def test_wait_for_tray_close_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_tray_close succeeds when tray closes."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -280,7 +280,7 @@ class TestTrayPollingMethods:
         # Start with tray open, close after 2 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             return {
@@ -297,7 +297,7 @@ class TestTrayPollingMethods:
         assert result is True
         assert poll_count >= 2
 
-    def test_wait_for_tray_close_timeout(self, mock_hardware):
+    def test_wait_for_tray_close_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_tray_close returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -316,7 +316,7 @@ class TestTrayPollingMethods:
         assert result is False
         assert mock_hardware.get_state.call_count > 5
 
-    def test_tray_methods_use_default_timeout(self, mock_hardware):
+    def test_tray_methods_use_default_timeout(self, mock_hardware: Mock) -> None:
         """Test tray methods use default timeout when not specified."""
         sm = NimbieStateMachine(
             target_drive="1",
@@ -347,7 +347,7 @@ class TestDiskOperationPolling:
     """Test disk-specific polling methods."""
 
     @pytest.fixture
-    def mock_hardware(self):
+    def mock_hardware(self) -> Mock:
         """Create a mock hardware instance."""
         hardware = MagicMock()
         # Default state - no disk operations
@@ -359,7 +359,7 @@ class TestDiskOperationPolling:
         }
         return hardware
 
-    def test_wait_for_disk_placed_success(self, mock_hardware):
+    def test_wait_for_disk_placed_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_placed succeeds when disk is placed."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -368,7 +368,7 @@ class TestDiskOperationPolling:
         # Simulate disk placement after 2 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             return {
@@ -385,7 +385,7 @@ class TestDiskOperationPolling:
         assert result is True
         assert poll_count >= 2
 
-    def test_wait_for_disk_placed_timeout(self, mock_hardware):
+    def test_wait_for_disk_placed_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_placed returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -404,7 +404,7 @@ class TestDiskOperationPolling:
         assert result is False
         assert mock_hardware.get_state.call_count > 5
 
-    def test_wait_for_disk_lifted_success(self, mock_hardware):
+    def test_wait_for_disk_lifted_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_lifted succeeds when disk is lifted."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -413,7 +413,7 @@ class TestDiskOperationPolling:
         # Simulate disk lifting after 3 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             return {
@@ -430,7 +430,7 @@ class TestDiskOperationPolling:
         assert result is True
         assert poll_count >= 3
 
-    def test_wait_for_disk_lifted_timeout(self, mock_hardware):
+    def test_wait_for_disk_lifted_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_lifted returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -448,7 +448,7 @@ class TestDiskOperationPolling:
 
         assert result is False
 
-    def test_wait_for_disk_dropped_success(self, mock_hardware):
+    def test_wait_for_disk_dropped_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_dropped succeeds when disk is dropped."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -457,7 +457,7 @@ class TestDiskOperationPolling:
         # Start with disk lifted, drop after 2 polls
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             return {
@@ -474,7 +474,7 @@ class TestDiskOperationPolling:
         assert result is True
         assert poll_count >= 2
 
-    def test_wait_for_disk_dropped_timeout(self, mock_hardware):
+    def test_wait_for_disk_dropped_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_dropped returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -492,7 +492,7 @@ class TestDiskOperationPolling:
 
         assert result is False
 
-    def test_wait_for_disk_in_drive_success(self, mock_hardware):
+    def test_wait_for_disk_in_drive_success(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_in_drive succeeds when disk loads."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -501,7 +501,7 @@ class TestDiskOperationPolling:
         # Simulate disk loading process
         poll_count = 0
 
-        def get_state_side_effect():
+        def get_state_side_effect() -> dict[str, bool]:
             nonlocal poll_count
             poll_count += 1
             if poll_count < 2:
@@ -527,7 +527,7 @@ class TestDiskOperationPolling:
         assert result is True
         assert poll_count >= 2
 
-    def test_wait_for_disk_in_drive_timeout(self, mock_hardware):
+    def test_wait_for_disk_in_drive_timeout(self, mock_hardware: Mock) -> None:
         """Test wait_for_disk_in_drive returns False on timeout."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01
@@ -545,7 +545,7 @@ class TestDiskOperationPolling:
 
         assert result is False
 
-    def test_disk_in_drive_requires_all_conditions(self, mock_hardware):
+    def test_disk_in_drive_requires_all_conditions(self, mock_hardware: Mock) -> None:
         """Test that disk_in_drive requires all conditions to be met."""
         sm = NimbieStateMachine(
             target_drive="1", hardware=mock_hardware, poll_interval=0.01

@@ -7,22 +7,22 @@ import pytest
 from nimbie import NimbieDriver, NimbieStateMachine
 
 
-def test_eject_requires_drive_parameter():
+def test_eject_requires_drive_parameter() -> None:
     """Test that eject functions require drive parameter."""
     from nimbie.eject import close_tray, open_tray
 
     # Test that open_tray requires drive parameter
     with pytest.raises(TypeError) as exc_info:
-        open_tray()
+        open_tray()  # type: ignore[call-arg]
     assert "missing 1 required positional argument: 'drive'" in str(exc_info.value)
 
     # Test that close_tray requires drive parameter
     with pytest.raises(TypeError) as exc_info:
-        close_tray()
+        close_tray()  # type: ignore[call-arg]
     assert "missing 1 required positional argument: 'drive'" in str(exc_info.value)
 
 
-def test_eject_with_drive_parameter():
+def test_eject_with_drive_parameter() -> None:
     """Test that eject functions pass drive parameter correctly."""
     import platform
 
@@ -63,7 +63,7 @@ def test_eject_with_drive_parameter():
             assert mock_run.call_args[0][0] == ["eject", "-t", "/dev/sr0"]
 
 
-def test_eject_error_messages():
+def test_eject_error_messages() -> None:
     """Test that error messages include drive info."""
     from nimbie.eject import close_tray, open_tray
 
@@ -82,7 +82,7 @@ def test_eject_error_messages():
         assert str(exc_info.value) == "Failed to close tray for drive /dev/sr1"
 
 
-def test_nimbie_driver_with_target_drive():
+def test_nimbie_driver_with_target_drive() -> None:
     """Test that NimbieDriver passes target_drive to eject functions."""
     # Mock USB device
     with patch("usb.core.find") as mock_find:
@@ -116,7 +116,7 @@ def test_nimbie_driver_with_target_drive():
                 mock_close.assert_called_once_with("2")
 
 
-def test_state_machine_with_target_drive():
+def test_state_machine_with_target_drive() -> None:
     """Test that NimbieStateMachine passes target_drive to driver."""
     # Mock USB device
     with patch("usb.core.find") as mock_find:
@@ -136,7 +136,7 @@ def test_state_machine_with_target_drive():
             assert sm.hardware.target_drive == "/dev/sr0"
 
 
-def test_state_machine_requires_target_drive():
+def test_state_machine_requires_target_drive() -> None:
     """Test that state machine requires target_drive."""
     # Mock USB device
     with patch("usb.core.find") as mock_find:
@@ -151,7 +151,7 @@ def test_state_machine_requires_target_drive():
 
             # Create state machine without target_drive should fail
             with pytest.raises(TypeError) as exc_info:
-                NimbieStateMachine()
+                NimbieStateMachine()  # type: ignore[call-arg]
             assert "missing 1 required positional argument: 'target_drive'" in str(
                 exc_info.value
             )

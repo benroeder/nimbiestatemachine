@@ -4,6 +4,8 @@ import time
 
 import pytest
 
+from nimbie import NimbieStateMachine
+
 # Mark for hardware tests
 pytestmark = pytest.mark.hardware
 
@@ -11,7 +13,7 @@ pytestmark = pytest.mark.hardware
 # Phase 1: Basic Setup with Hardware Verification
 
 
-def test_hardware_timeout_recovery(nimbie_state_machine):
+def test_hardware_timeout_recovery(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 1: Test hardware timeout error recovery."""
     # This test specifically handles hardware timeout scenarios
     sm = nimbie_state_machine
@@ -46,7 +48,7 @@ def test_hardware_timeout_recovery(nimbie_state_machine):
             raise
 
 
-def test_hardware_connection(nimbie_state_machine):
+def test_hardware_connection(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 2: Ensure we can connect to Nimbie hardware through state machine."""
     # This test runs with real hardware to verify connection
     sm = nimbie_state_machine
@@ -67,7 +69,9 @@ def test_hardware_connection(nimbie_state_machine):
     print(f"Hardware connected successfully. Current state: {state}")
 
 
-def test_create_state_machine_with_hardware(nimbie_state_machine):
+def test_create_state_machine_with_hardware(
+    nimbie_state_machine: NimbieStateMachine,
+) -> None:
     """Test 3: State machine should initialize with real hardware."""
     sm = nimbie_state_machine
 
@@ -77,7 +81,7 @@ def test_create_state_machine_with_hardware(nimbie_state_machine):
     print(f"State machine created successfully in state: {sm.state}")
 
 
-def test_read_hardware_state(nimbie_state_machine):
+def test_read_hardware_state(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 4: Verify we can read hardware state correctly."""
     sm = nimbie_state_machine
 
@@ -95,7 +99,7 @@ def test_read_hardware_state(nimbie_state_machine):
 # Phase 2: State Machine Operations
 
 
-def test_tray_operations(nimbie_state_machine):
+def test_tray_operations(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 5: Test tray open/close operations through state machine."""
     sm = nimbie_state_machine
 
@@ -126,7 +130,7 @@ def test_tray_operations(nimbie_state_machine):
     print("State machine remains in idle state")
 
 
-def test_disk_loading_cycle(nimbie_state_machine):
+def test_disk_loading_cycle(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 6: Test full disk loading cycle through state machine."""
     sm = nimbie_state_machine
 
@@ -192,7 +196,7 @@ def test_disk_loading_cycle(nimbie_state_machine):
     print("Disk unloaded successfully, back in idle state")
 
 
-def test_manual_mode_operations(nimbie_state_machine):
+def test_manual_mode_operations(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 7: Test manual mode operations."""
     sm = nimbie_state_machine
 
@@ -259,7 +263,7 @@ def test_manual_mode_operations(nimbie_state_machine):
     print("Manual mode correctly disabled after context")
 
 
-def test_error_recovery(nimbie_state_machine):
+def test_error_recovery(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 8: Test error recovery mechanism."""
     sm = nimbie_state_machine
 
@@ -307,7 +311,7 @@ def test_error_recovery(nimbie_state_machine):
 # Phase 3: Integration Tests
 
 
-def test_process_one_disk(nimbie_state_machine):
+def test_process_one_disk(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 9: Test high-level process_one_disk method."""
     sm = nimbie_state_machine
 
@@ -318,7 +322,7 @@ def test_process_one_disk(nimbie_state_machine):
     print("Testing process_one_disk method...")
 
     # Define a simple processing function
-    def process_fn():
+    def process_fn() -> bool:
         print("Processing disk...")
         time.sleep(1)  # Simulate processing
         return True  # Accept disk
@@ -331,7 +335,7 @@ def test_process_one_disk(nimbie_state_machine):
     print("Successfully processed one disk")
 
 
-def test_process_batch(nimbie_state_machine):
+def test_process_batch(nimbie_state_machine: NimbieStateMachine) -> None:
     """Test 10: Test batch processing of multiple disks."""
     sm = nimbie_state_machine
 
@@ -351,7 +355,7 @@ def test_process_batch(nimbie_state_machine):
     # Define a processing function that alternates accept/reject
     process_count = 0
 
-    def process_fn():
+    def process_fn() -> bool:
         nonlocal process_count
         process_count += 1
         print(f"Processing disk {process_count}...")

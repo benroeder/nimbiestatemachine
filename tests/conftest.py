@@ -1,12 +1,14 @@
 """Pytest configuration and fixtures for Nimbie tests."""
 
+from collections.abc import Generator
+
 import pytest
 
 from nimbie import NimbieDriver, NimbieStateMachine
 
 
 @pytest.fixture(scope="module")
-def nimbie_hardware():
+def nimbie_hardware() -> Generator[NimbieDriver, None, None]:
     """Provide a shared Nimbie hardware instance for all tests in the module."""
     try:
         # Use drive 1 for tests (Nimbie drive)
@@ -17,14 +19,16 @@ def nimbie_hardware():
 
 
 @pytest.fixture(scope="module")
-def nimbie_state_machine(nimbie_hardware):
+def nimbie_state_machine(nimbie_hardware: NimbieDriver) -> NimbieStateMachine:
     """Provide a shared state machine instance for all tests in the module."""
     # Pass target_drive even though we're using existing hardware
     return NimbieStateMachine(target_drive="1", hardware=nimbie_hardware)
 
 
 @pytest.fixture(autouse=True)
-def ensure_clean_state(nimbie_state_machine):
+def ensure_clean_state(
+    nimbie_state_machine: NimbieStateMachine,
+) -> Generator[None, None, None]:
     """Ensure hardware is in a clean state before and after each test using state machine."""
     # Setup: transition to idle state before test
     try:

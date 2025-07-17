@@ -2,13 +2,13 @@
 
 import pytest
 
-from nimbie import NimbieStateMachine
+from nimbie import NimbieDriver, NimbieStateMachine
 
 
 class TestHighLevelOperations:
     """Test high-level disk loading and unloading operations."""
 
-    def test_load_disk_from_queue(self, nimbie_hardware):
+    def test_load_disk_from_queue(self, nimbie_hardware: NimbieDriver) -> None:
         """Test loading a disk from queue into drive."""
         sm = NimbieStateMachine(target_drive="1", hardware=nimbie_hardware)
 
@@ -39,7 +39,9 @@ class TestHighLevelOperations:
         assert not state["tray_out"], "Tray should be closed"
         assert not state["disk_in_open_tray"], "Disk should be in drive"
 
-    def test_unload_disk_to_accept(self, nimbie_state_machine):
+    def test_unload_disk_to_accept(
+        self, nimbie_state_machine: NimbieStateMachine
+    ) -> None:
         """Test unloading a disk to accept pile."""
         sm = nimbie_state_machine
 
@@ -67,7 +69,9 @@ class TestHighLevelOperations:
         assert not state["tray_out"], "Tray should be closed"
         assert not state["disk_lifted"], "Disk should not be lifted"
 
-    def test_unload_disk_to_reject(self, nimbie_state_machine):
+    def test_unload_disk_to_reject(
+        self, nimbie_state_machine: NimbieStateMachine
+    ) -> None:
         """Test unloading a disk to reject pile."""
         sm = nimbie_state_machine
 
@@ -95,7 +99,7 @@ class TestHighLevelOperations:
         assert not state["tray_out"], "Tray should be closed"
         assert not state["disk_lifted"], "Disk should not be lifted"
 
-    def test_full_disk_cycle(self, nimbie_state_machine):
+    def test_full_disk_cycle(self, nimbie_state_machine: NimbieStateMachine) -> None:
         """Test a complete disk processing cycle."""
         sm = nimbie_state_machine
 
@@ -126,7 +130,9 @@ class TestHighLevelOperations:
 
         print("\nFull disk cycle completed successfully!")
 
-    def test_error_handling_wrong_state(self, nimbie_state_machine):
+    def test_error_handling_wrong_state(
+        self, nimbie_state_machine: NimbieStateMachine
+    ) -> None:
         """Test that operations fail gracefully in wrong states."""
         sm = nimbie_state_machine
 
@@ -149,7 +155,9 @@ class TestHighLevelOperations:
 class TestStateValidation:
     """Test proper state validation for high-level operations."""
 
-    def test_load_requires_idle_or_loading(self, nimbie_state_machine):
+    def test_load_requires_idle_or_loading(
+        self, nimbie_state_machine: NimbieStateMachine
+    ) -> None:
         """Test that load only works in idle or loading states."""
         sm = nimbie_state_machine
 
@@ -173,7 +181,9 @@ class TestStateValidation:
             ):
                 sm.load_disk_from_queue()
 
-    def test_unload_requires_processing_or_unloading(self, nimbie_state_machine):
+    def test_unload_requires_processing_or_unloading(
+        self, nimbie_state_machine: NimbieStateMachine
+    ) -> None:
         """Test that unload only works in processing or unloading states."""
         sm = nimbie_state_machine
 

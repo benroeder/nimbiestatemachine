@@ -4,7 +4,7 @@ import logging
 import sys
 import time
 from contextlib import contextmanager
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from transitions import Machine
 
@@ -14,7 +14,7 @@ from .driver import NimbieDriver
 class ImmediateStreamHandler(logging.StreamHandler):
     """Stream handler that flushes after each emit."""
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         super().emit(record)
         self.flush()
 
@@ -34,10 +34,10 @@ class NimbieStateMachine:
     def __init__(
         self,
         target_drive: Union[str, int],
-        hardware=None,
+        hardware: Optional[NimbieDriver] = None,
         poll_interval: float = 0.1,
         default_timeout: float = 10.0,
-    ):
+    ) -> None:
         """Initialize state machine with hardware interface.
 
         Args:
@@ -81,7 +81,7 @@ class NimbieStateMachine:
 
         self.logger.info("State machine initialized in idle state")
 
-    def _add_transitions(self):
+    def _add_transitions(self) -> None:
         """Define state transitions."""
         # From idle, we can start loading
         self.machine.add_transition(
@@ -118,11 +118,36 @@ class NimbieStateMachine:
             trigger="recover", source="error", dest="idle", after="reset_hardware"
         )
 
-    def can_load_disk(self):
+    # Type annotations for dynamically created transition methods
+    def start_load(self) -> bool:  # type: ignore[empty-body]
+        """Start loading a disk. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def complete_load(self) -> bool:  # type: ignore[empty-body]
+        """Complete loading a disk. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def start_unload(self) -> bool:  # type: ignore[empty-body]
+        """Start unloading a disk. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def complete_unload(self) -> bool:  # type: ignore[empty-body]
+        """Complete unloading a disk. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def error_occurred(self) -> bool:  # type: ignore[empty-body]
+        """Transition to error state. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def recover(self) -> bool:  # type: ignore[empty-body]
+        """Recover from error state. Added by transitions library."""
+        pass  # This method is dynamically created by transitions library
+
+    def can_load_disk(self) -> bool:
         """Check if we can load a disk."""
         return self.hardware.disk_available()
 
-    def reset_hardware(self):
+    def reset_hardware(self) -> None:
         """Reset hardware to safe state."""
         self.logger.info("Resetting hardware to safe state")
         try:
@@ -141,7 +166,7 @@ class NimbieStateMachine:
             self.logger.error(f"Error during hardware reset: {e}")
             # Continue anyway - hardware might be in timeout state
 
-    def transition_to_idle(self):
+    def transition_to_idle(self) -> None:
         """Transition hardware to idle state from any current state."""
         self.logger.info("Transitioning to idle state")
         try:
@@ -188,7 +213,7 @@ class NimbieStateMachine:
                 self.error_occurred()
             raise
 
-    def handle_timeout_error(self):
+    def handle_timeout_error(self) -> bool:
         """Handle USB timeout errors by attempting hardware recovery."""
         self.logger.warning("USB timeout detected, attempting hardware recovery")
 
@@ -232,7 +257,7 @@ class NimbieStateMachine:
             self.logger.error(f"Hardware recovery failed: {e}")
             return False
 
-    def get_hardware_state(self):
+    def get_hardware_state(self) -> dict[str, bool]:
         """Get current hardware state."""
         try:
             return self.hardware.get_state()
@@ -242,7 +267,7 @@ class NimbieStateMachine:
             raise
 
     @contextmanager
-    def manual_operation(self):
+    def manual_operation(self) -> Any:
         """Context manager to enable manual mode for testing.
 
         When in manual mode, normally-private operations can be accessed
@@ -261,7 +286,7 @@ class NimbieStateMachine:
             self.manual_mode = False
             self.logger.info("Exiting manual mode")
 
-    def _open_tray(self):
+    def _open_tray(self) -> None:
         """Internal method to open the disk tray."""
         self.logger.info("Opening tray")
         # Send command to open tray
@@ -270,14 +295,14 @@ class NimbieStateMachine:
         if not self.wait_for_tray_open():
             raise TimeoutError("Tray failed to open within timeout")
 
-    def open_tray(self):
+    def open_tray(self) -> None:
         """Open the disk tray."""
         # Allow in idle, loading, or unloading states
         if self.state not in ["idle", "loading", "unloading"]:
             raise RuntimeError(f"Cannot open tray in {self.state} state")
         self._open_tray()
 
-    def _close_tray(self):
+    def _close_tray(self) -> None:
         """Internal method to close the disk tray."""
         self.logger.info("Closing tray")
         # Send command to close tray
@@ -286,12 +311,12 @@ class NimbieStateMachine:
         if not self.wait_for_tray_close():
             raise TimeoutError("Tray failed to close within timeout")
 
-    def close_tray(self):
+    def close_tray(self) -> None:
         """Close the disk tray."""
         # Allow in any state (safety operation)
         self._close_tray()
 
-    def _place_disk(self):
+    def _place_disk(self) -> str:
         """Internal method to place a disk from the queue onto the tray."""
         self.logger.info("Placing disk from queue")
 
@@ -308,7 +333,7 @@ class NimbieStateMachine:
             raise TimeoutError("Disk failed to be placed within timeout")
         return result
 
-    def place_disk(self):
+    def place_disk(self) -> str:
         """Place a disk from the queue onto the tray."""
         # Only allow in loading state
         if self.state != "loading":
@@ -317,7 +342,7 @@ class NimbieStateMachine:
             )
         return self._place_disk()
 
-    def _lift_disk(self):
+    def _lift_disk(self) -> str:
         """Internal method to lift the disk from the tray."""
         self.logger.info("Lifting disk from tray")
         # Send command to lift disk
@@ -327,7 +352,7 @@ class NimbieStateMachine:
             raise TimeoutError("Disk failed to be lifted within timeout")
         return result
 
-    def lift_disk(self):
+    def lift_disk(self) -> str:
         """Lift the disk from the tray."""
         # Only allow in unloading state
         if self.state != "unloading":
@@ -336,7 +361,7 @@ class NimbieStateMachine:
             )
         return self._lift_disk()
 
-    def _accept_disk(self):
+    def _accept_disk(self) -> str:
         """Internal method to accept the current disk (drop to accept pile)."""
         self.logger.info("Accepting disk")
         # Send command to accept disk
@@ -346,7 +371,7 @@ class NimbieStateMachine:
             raise TimeoutError("Disk failed to be dropped within timeout")
         return result
 
-    def accept_disk(self):
+    def accept_disk(self) -> str:
         """Accept the current disk (drop to accept pile)."""
         # Only allow in unloading state
         if self.state != "unloading":
@@ -355,7 +380,7 @@ class NimbieStateMachine:
             )
         return self._accept_disk()
 
-    def _reject_disk(self):
+    def _reject_disk(self) -> str:
         """Internal method to reject the current disk (drop to reject pile)."""
         self.logger.info("Rejecting disk")
         # Send command to reject disk
@@ -365,7 +390,7 @@ class NimbieStateMachine:
             raise TimeoutError("Disk failed to be dropped within timeout")
         return result
 
-    def reject_disk(self):
+    def reject_disk(self) -> str:
         """Reject the current disk (drop to reject pile)."""
         # Only allow in unloading state
         if self.state != "unloading":
@@ -375,49 +400,49 @@ class NimbieStateMachine:
         return self._reject_disk()
 
     # Manual mode methods for testing
-    def manual_open_tray(self):
+    def manual_open_tray(self) -> None:
         """Manually open tray (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Opening tray")
         self._open_tray()
 
-    def manual_close_tray(self):
+    def manual_close_tray(self) -> None:
         """Manually close tray (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Closing tray")
         self._close_tray()
 
-    def manual_place_disk(self):
+    def manual_place_disk(self) -> str:
         """Manually place disk (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Placing disk")
         return self._place_disk()
 
-    def manual_lift_disk(self):
+    def manual_lift_disk(self) -> str:
         """Manually lift disk (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Lifting disk")
         return self._lift_disk()
 
-    def manual_accept_disk(self):
+    def manual_accept_disk(self) -> str:
         """Manually accept disk (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Accepting disk")
         return self._accept_disk()
 
-    def manual_reject_disk(self):
+    def manual_reject_disk(self) -> str:
         """Manually reject disk (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
         self.logger.info("Manual: Rejecting disk")
         return self._reject_disk()
 
-    def manual_set_state(self, state):
+    def manual_set_state(self, state: str) -> None:
         """Manually set state (only in manual mode)."""
         if not self.manual_mode:
             raise RuntimeError("Manual operations only allowed in manual mode")
@@ -427,7 +452,9 @@ class NimbieStateMachine:
         # Force state transition without conditions
         self.machine.set_state(state)
 
-    def process_one_disk(self, process_fn=None):
+    def process_one_disk(
+        self, process_fn: Optional[Callable[[], bool]] = None
+    ) -> tuple[bool, bool]:
         """Process a single disk through the complete cycle.
 
         Args:
@@ -503,7 +530,11 @@ class NimbieStateMachine:
             self.recover()  # Transition: error -> idle
             return False, False
 
-    def process_batch(self, count=None, process_fn=None):
+    def process_batch(
+        self,
+        count: Optional[int] = None,
+        process_fn: Optional[Callable[[], bool]] = None,
+    ) -> dict[str, int]:
         """Process multiple disks in sequence.
 
         Args:
@@ -537,7 +568,11 @@ class NimbieStateMachine:
         self.logger.info(f"Batch complete: {stats}")
         return stats
 
-    def process_continuous(self, process_fn=None, check_interval=1.0):
+    def process_continuous(
+        self,
+        process_fn: Optional[Callable[[], bool]] = None,
+        check_interval: float = 1.0,
+    ) -> dict[str, int]:
         """Process disks continuously until stopped.
 
         This method processes disks in a loop, checking for new disks
@@ -592,7 +627,7 @@ class NimbieStateMachine:
 
         return stats
 
-    def stop_continuous(self):
+    def stop_continuous(self) -> None:
         """Stop continuous processing.
 
         This can be called from another thread to gracefully stop
@@ -658,7 +693,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for tray to open...")
 
-        def is_tray_open():
+        def is_tray_open() -> bool:
             state = self.hardware.get_state()
             return state["tray_out"]
 
@@ -685,7 +720,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for tray to close...")
 
-        def is_tray_closed():
+        def is_tray_closed() -> bool:
             state = self.hardware.get_state()
             return not state["tray_out"]
 
@@ -711,7 +746,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for disk to be placed in tray...")
 
-        def is_disk_in_tray():
+        def is_disk_in_tray() -> bool:
             state = self.hardware.get_state()
             return state["disk_in_open_tray"]
 
@@ -737,7 +772,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for disk to be lifted...")
 
-        def is_disk_lifted():
+        def is_disk_lifted() -> bool:
             state = self.hardware.get_state()
             return state["disk_lifted"]
 
@@ -761,7 +796,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for disk to be dropped...")
 
-        def is_disk_dropped():
+        def is_disk_dropped() -> bool:
             state = self.hardware.get_state()
             return not state["disk_lifted"]
 
@@ -790,7 +825,7 @@ class NimbieStateMachine:
         """
         self.logger.info("Waiting for disk to be loaded in drive...")
 
-        def is_disk_in_drive():
+        def is_disk_in_drive() -> bool:
             state = self.hardware.get_state()
             # Disk is in drive when tray is closed and disk is not visible
             return (
