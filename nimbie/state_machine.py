@@ -31,6 +31,9 @@ class NimbieStateMachine:
         "error",  # Error state
     ]
 
+    # Type hint for state attribute added by transitions
+    state: str
+
     def __init__(
         self,
         target_drive: Union[str, int],
@@ -202,8 +205,8 @@ class NimbieStateMachine:
                 else:
                     self._close_tray()
 
-            # Force state machine to idle
-            self.state = "idle"
+            # Force state machine to idle using proper API
+            self.machine.set_state("idle")
             self.logger.info("Hardware transitioned to idle state")
 
         except Exception as e:
@@ -217,8 +220,8 @@ class NimbieStateMachine:
         """Handle USB timeout errors by attempting hardware recovery."""
         self.logger.warning("USB timeout detected, attempting hardware recovery")
 
-        # Force state machine to error state
-        self.state = "error"
+        # Force state machine to error state using proper API
+        self.machine.set_state("error")
 
         # Try basic recovery operations without reading state
         try:
@@ -247,7 +250,7 @@ class NimbieStateMachine:
             try:
                 state = self.hardware.get_state()
                 self.logger.info(f"Hardware recovery successful, state: {state}")
-                self.state = "idle"
+                self.machine.set_state("idle")
                 return True
             except Exception as e:
                 self.logger.error(f"Hardware still not responding after recovery: {e}")
